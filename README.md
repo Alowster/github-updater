@@ -1,125 +1,52 @@
-# GitHub Updater 🔄
+# GitHub Updater
 
-Una toolbox de escritorio para monitorizar y actualizar tus aplicaciones de GitHub automáticamente.
+Keep your GitHub apps up to date from a single window. GitHub Updater monitors the repositories you choose and notifies you — or downloads automatically — whenever a new version is released.
 
-## ✨ Características
+## Download
 
-- **Toolbox minimalista** — ventana compacta con todas tus apps y su estado
-- **Bandeja del sistema** — consume mínimos recursos cuando está minimizada
-- **Verificación automática** — comprueba nuevas versiones por GitHub Releases en intervalos configurables
-- **Auto-actualización** — descarga automáticamente los binarios cuando detecta una versión nueva
-- **Self-updating** — el propio updater se actualiza a sí mismo
-- **Notificaciones** — avisa cuando hay una actualización disponible
-- **Soporte para apps Python y ejecutables** — descarga el release asset correspondiente
+Go to the [Releases](../../releases/latest) page and download the executable for your system.
 
-## 🚀 Instalación
+No installation required: just open the `.exe` and you're good to go.
 
-### Requisitos
-- [Node.js](https://nodejs.org/) v18 o superior
-- [Git](https://git-scm.com/)
+## Getting started
 
-### Pasos
+### 1. Add an application
 
-```bash
-# 1. Clonar o descargar el repositorio
-git clone https://github.com/TU-USUARIO/github-updater.git
-cd github-updater
+Click **+ App** and fill in:
 
-# 2. Instalar dependencias
-npm install
+| Field | What to enter |
+|---|---|
+| **Name** | The name you want to see in the list |
+| **Repository** | `user/repository` or the full GitHub URL |
+| **Installed version** | The version you currently have (e.g. `v1.2.0`). Leave empty if not installed yet. |
+| **Emoji / Icon** | An emoji to visually identify it (optional) |
+| **Auto-update** | Enable to download new versions automatically without asking |
 
-# 3. Arrancar en modo desarrollo
-npm start
+### 2. Check for updates
 
-# 4. (Opcional) Compilar ejecutable
-npm run build        # Windows (.exe)
-npm run build:linux  # Linux (.AppImage)
-```
+Click **Check** to scan all apps at once. Any app with a new version will be highlighted with an **Update** button.
 
-## ⚙️ Configuración
+If a release has multiple files, the app will ask you which one to download.
 
-### Token de GitHub (recomendado)
+### 3. Settings
 
-Sin token, la API de GitHub tiene un límite de **60 peticiones/hora**. Con token personal: **5000 peticiones/hora**.
+In the **Settings** tab you can configure:
 
-1. Ve a [GitHub Settings > Tokens](https://github.com/settings/tokens/new)
-2. Crea un token con scope `repo` (para repos privados) o sin scopes (solo públicos)
-3. Pégalo en la pestaña **Ajustes** de la app
+- **GitHub Token** — required for private repositories and to raise the API limit from 60 to 5000 requests/hour. [Create token →](https://github.com/settings/tokens/new)
+- **Check interval** — how often (in minutes) the app automatically checks for updates
+- **Start with Windows** — launch the app when you log in
+- **Minimize to tray** — keep the app running in the background when you close the window
 
-### Añadir tus aplicaciones
+## Troubleshooting
 
-1. Haz clic en **+ App**
-2. Rellena:
-   - **Nombre**: nombre que quieres mostrar
-   - **Repositorio**: `tu-usuario/nombre-repo`
-   - **Versión instalada**: la versión que tienes ahora (p.ej. `v1.2.0`)
-   - **Icono**: un emoji representativo (opcional)
-   - **Auto-update**: actívalo si quieres descargas automáticas
+| Problem | Solution |
+|---|---|
+| "GitHub API error: 403" | You've hit the rate limit. Add a token in Settings |
+| "GitHub API error: 404" | The repository doesn't exist or is private. Use a token with the `repo` scope |
+| Not visible in the tray | Restart the app. On Windows it may be hidden in the overflow area of the taskbar |
+| Version not detected | Make sure the installed version follows the format `v1.0.0` |
+| No download button | That app's release has no attached files. Clicking Update will open the release page in your browser |
 
-### Formato de versiones
-
-La app usa los **tags de GitHub Releases** para comparar versiones. Asegúrate de que tus releases usen el formato semver:
-- `v1.0.0` ✅
-- `v2.3.1` ✅  
-- `1.0.0` ✅ (sin `v` también funciona)
-
-## 📁 Estructura del proyecto
-
-```
-github-updater/
-├── src/
-│   ├── main.js          # Proceso principal de Electron
-│   ├── preload.js       # Puente seguro renderer ↔ main
-│   └── renderer/
-│       └── index.html   # Interfaz de usuario
-├── assets/
-│   ├── icon.png         # Icono de la app (256x256)
-│   ├── icon.ico         # Icono para Windows
-│   └── tray-icon.png    # Icono de la bandeja (16x16 o 32x32)
-├── apps-config/
-│   └── example-apps.json
-└── package.json
-```
-
-## 🎨 Iconos
-
-Para que la app tenga iconos correctos, añade en la carpeta `assets/`:
-- `icon.png` — 256×256px, fondo transparente
-- `icon.ico` — para Windows (puedes convertir el .png con [icoconvert.com](https://icoconvert.com))
-- `tray-icon.png` — 16×16 o 32×32px para la bandeja del sistema
-
-## 🔧 Self-update
-
-Para que el updater se actualice a sí mismo, edita en `src/main.js`:
-
-```js
-const UPDATER_REPO = 'TU_USUARIO/github-updater'; // ← Cambia esto
-```
-
-Y crea releases en GitHub con el ejecutable compilado como asset.
-
-## 📝 Estructura de un release en GitHub
-
-Para que la descarga automática funcione, tus releases deben tener **assets** adjuntos:
-
-```
-Mi Release v2.0.0
-├── mi-app-v2.0.0-setup.exe    ← Ejecutable Windows
-├── mi-app-v2.0.0.zip          ← Versión portable
-└── Source code (zip)
-```
-
-Si no hay assets, el updater abrirá la página del release en el navegador.
-
-## 🐛 Solución de problemas
-
-| Problema | Solución |
-|----------|----------|
-| "GitHub API error: 403" | Has superado el rate limit. Añade un token en Ajustes |
-| "GitHub API error: 404" | El repositorio no existe o es privado. Usa un token con scope `repo` |
-| No aparece en la bandeja | Reinicia la app. En Windows puede estar oculta en la barra de tareas |
-| La versión no se detecta | Comprueba que el tag del release sea formato `v1.0.0` |
-
-## 📄 Licencia
+## License
 
 MIT

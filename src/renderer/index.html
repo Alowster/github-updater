@@ -40,7 +40,6 @@
     user-select: none;
   }
 
-  /* ── Titlebar ── */
   #titlebar {
     height: 40px;
     background: var(--bg2);
@@ -100,7 +99,6 @@
   .win-btn:hover { background: var(--bg); color: var(--text); }
   .win-btn.close:hover { background: var(--red-dim); border-color: var(--red); color: var(--red); }
 
-  /* ── Toolbar ── */
   #toolbar {
     display: flex;
     align-items: center;
@@ -146,7 +144,6 @@
   .btn.spinning svg { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Main content ── */
   #content {
     flex: 1;
     overflow: hidden;
@@ -154,11 +151,9 @@
     flex-direction: column;
   }
 
-  /* ── Views ── */
   .view { display: none; flex: 1; overflow-y: auto; padding: 12px; }
   .view.active { display: flex; flex-direction: column; gap: 8px; }
 
-  /* ── App Cards ── */
   .app-card {
     background: var(--bg2);
     border: 1px solid var(--border);
@@ -276,7 +271,6 @@
   .btn-icon:hover { border-color: var(--blue); color: var(--blue); }
   .btn-icon.danger:hover { border-color: var(--red); color: var(--red); }
 
-  /* Progress bar */
   .progress-bar {
     height: 2px;
     background: var(--bg3);
@@ -293,7 +287,6 @@
     transition: width 0.3s;
   }
 
-  /* ── Empty state ── */
   .empty-state {
     flex: 1;
     display: flex;
@@ -309,7 +302,6 @@
   .empty-state h3 { font-size: 16px; color: var(--text); }
   .empty-state p { font-size: 13px; line-height: 1.5; }
 
-  /* ── Settings view ── */
   .settings-form {
     display: flex;
     flex-direction: column;
@@ -339,7 +331,7 @@
   .form-input::placeholder { color: var(--text2); opacity: 0.6; }
   .form-hint { font-size: 11px; color: var(--text2); }
   .form-hint a { color: var(--blue); cursor: pointer; }
-  
+
   .toggle-row {
     display: flex;
     align-items: center;
@@ -373,7 +365,6 @@
   }
   .toggle.on::after { transform: translateX(16px); }
 
-  /* ── Add app modal ── */
   .modal-overlay {
     display: none;
     position: fixed;
@@ -406,7 +397,6 @@
   }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
-  /* ── Tab nav ── */
   #tab-nav {
     display: flex;
     background: var(--bg2);
@@ -434,7 +424,6 @@
   .tab-btn:hover { color: var(--text); }
   .tab-btn.active { color: var(--blue); border-top-color: var(--blue); }
 
-  /* ── Asset selector ── */
   .asset-list { display: flex; flex-direction: column; gap: 6px; }
   .asset-item {
     display: flex;
@@ -451,12 +440,10 @@
   .asset-name { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
   .asset-size { font-size: 10px; color: var(--text2); }
 
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  /* Animations */
   .app-card { animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
@@ -481,7 +468,6 @@
 </head>
 <body>
 
-<!-- Titlebar -->
 <div id="titlebar">
   <div class="logo">
     <div class="dot"></div>
@@ -494,7 +480,6 @@
   </div>
 </div>
 
-<!-- Toolbar -->
 <div id="toolbar">
   <div class="toolbar-status" id="status-text">Cargando...</div>
   <button class="btn btn-secondary" id="btn-check" onclick="checkAll()">
@@ -508,9 +493,7 @@
   </button>
 </div>
 
-<!-- Content -->
 <div id="content">
-  <!-- Apps View -->
   <div class="view active" id="view-apps">
     <div id="apps-container">
       <div class="empty-state" id="empty-state">
@@ -524,7 +507,6 @@
     </div>
   </div>
 
-  <!-- Settings View -->
   <div class="view" id="view-settings">
     <div class="settings-form">
       <div class="form-group">
@@ -561,7 +543,6 @@
   </div>
 </div>
 
-<!-- Tab nav -->
 <div id="tab-nav">
   <button class="tab-btn active" onclick="switchTab(event, 'apps')">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -578,7 +559,6 @@
   </button>
 </div>
 
-<!-- Add App Modal -->
 <div class="modal-overlay" id="modal-add">
   <div class="modal">
     <div class="modal-title">
@@ -618,7 +598,6 @@
   </div>
 </div>
 
-<!-- Asset selector modal -->
 <div class="modal-overlay" id="modal-assets">
   <div class="modal">
     <div class="modal-title">
@@ -641,7 +620,6 @@ let apps = [];
 let currentAssetAppId = null;
 let currentReleaseUrl = null;
 
-// ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   const version = await window.api.getAppVersion();
   document.getElementById('app-version').textContent = `v${version}`;
@@ -668,7 +646,6 @@ async function init() {
   updateStatusBar();
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
 function renderApps() {
   const container = document.getElementById('apps-container');
   const empty = document.getElementById('empty-state');
@@ -681,14 +658,12 @@ function renderApps() {
   }
   empty.style.display = 'none';
 
-  // Sort: outdated first
   const sorted = [...apps].sort((a, b) => {
     if (a.isOutdated && !b.isOutdated) return -1;
     if (!a.isOutdated && b.isOutdated) return 1;
     return a.name.localeCompare(b.name);
   });
 
-  // Group
   const outdated = sorted.filter(a => a.isOutdated);
   const upToDate = sorted.filter(a => !a.isOutdated && a.currentVersion);
   const unknown = sorted.filter(a => !a.isOutdated && !a.currentVersion);
@@ -754,7 +729,7 @@ function renderCard(app) {
             <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
           </svg>
         </button>
-        <button class="btn-icon" title="Auto-update: ${app.autoUpdate ? 'ON' : 'OFF'}" 
+        <button class="btn-icon" title="Auto-update: ${app.autoUpdate ? 'ON' : 'OFF'}"
           onclick="toggleAutoUpdate('${app.id}')" style="${app.autoUpdate ? 'color:var(--blue);border-color:var(--blue)' : ''}">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 8 16 8"/>
@@ -782,7 +757,6 @@ function updateStatusBar() {
   }
 }
 
-// ── Actions ───────────────────────────────────────────────────────────────────
 async function checkAll() {
   const btn = document.getElementById('btn-check');
   const icon = document.getElementById('check-icon');
@@ -813,7 +787,6 @@ async function triggerUpdate(appId) {
 
   const assets = app.latestRelease.assets;
   if (assets.length === 0) {
-    // No binary assets, open GitHub
     window.api.openReleasePage(app.latestRelease.htmlUrl);
     return;
   }
@@ -822,12 +795,11 @@ async function triggerUpdate(appId) {
     return;
   }
 
-  // Multiple assets - show selector
   currentAssetAppId = appId;
   currentReleaseUrl = app.latestRelease.htmlUrl;
-  document.getElementById('assets-release-name').textContent = 
+  document.getElementById('assets-release-name').textContent =
     `Release: ${app.latestRelease.version} - ${app.latestRelease.name || ''}`;
-  
+
   const list = document.getElementById('asset-list');
   list.innerHTML = assets.map(a => `
     <div class="asset-item" onclick="startDownload('${escapeHtml(appId)}', '${escapeHtml(a.name)}')">
@@ -835,7 +807,7 @@ async function triggerUpdate(appId) {
       <span class="asset-size">${formatBytes(a.size)}</span>
     </div>
   `).join('');
-  
+
   document.getElementById('modal-assets').classList.add('active');
 }
 
@@ -843,7 +815,7 @@ async function startDownload(appId, assetName) {
   document.getElementById('modal-assets').classList.remove('active');
   const result = await window.api.downloadUpdate(appId, assetName);
   if (result.success) {
-    apps = apps.map(a => a.id === appId 
+    apps = apps.map(a => a.id === appId
       ? { ...a, currentVersion: a.latestVersion, isOutdated: false }
       : a);
     renderApps();
@@ -876,7 +848,6 @@ async function removeApp(appId) {
   updateStatusBar();
 }
 
-// ── Add App Modal ─────────────────────────────────────────────────────────────
 function openAddModal() {
   document.getElementById('m-name').value = '';
   document.getElementById('m-repo').value = '';
@@ -899,15 +870,19 @@ async function addApp() {
   const autoUpdate = document.getElementById('m-auto').classList.contains('on');
 
   if (!name || !repo) { alert('Nombre y repositorio son obligatorios'); return; }
-  if (!repo.includes('/')) { alert('El repositorio debe ser "usuario/repositorio"'); return; }
 
-  const newApp = await window.api.addApp({ name, repo, currentVersion: version, icon, autoUpdate });
+  let repoName = repo;
+  const githubMatch = repo.match(/github\.com\/([^\/]+\/[^\/]+)/);
+  if (githubMatch) repoName = githubMatch[1].replace(/\.git$/, '');
+
+  if (!repoName.includes('/')) { alert('El repositorio debe ser "usuario/repositorio" o una URL de GitHub'); return; }
+
+  const newApp = await window.api.addApp({ name, repo: repoName, currentVersion: version, icon, autoUpdate });
   apps.push(newApp);
   renderApps();
   updateStatusBar();
   closeAddModal();
 
-  // Check immediately
   const updated = await window.api.checkApp(newApp.id);
   if (updated) {
     apps = apps.map(a => a.id === newApp.id ? updated : a);
@@ -916,7 +891,6 @@ async function addApp() {
   }
 }
 
-// ── Settings ──────────────────────────────────────────────────────────────────
 async function loadSettings() {
   const s = await window.api.getSettings();
   document.getElementById('s-token').value = s.githubToken || '';
@@ -944,7 +918,6 @@ async function saveSettings(event) {
 
 function toggleSetting(el) { el.classList.toggle('on'); }
 
-// ── Tab navigation ────────────────────────────────────────────────────────────
 function switchTab(event, tab) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -952,7 +925,6 @@ function switchTab(event, tab) {
   event.currentTarget.classList.add('active');
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function escapeHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -963,7 +935,6 @@ function formatBytes(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-// Close modals on overlay click
 document.getElementById('modal-add').addEventListener('click', function(e) {
   if (e.target === this) closeAddModal();
 });
@@ -971,7 +942,6 @@ document.getElementById('modal-assets').addEventListener('click', function(e) {
   if (e.target === this) this.classList.remove('active');
 });
 
-// Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeAddModal();

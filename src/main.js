@@ -4,11 +4,9 @@ const fs = require('fs');
 const { randomUUID } = require('crypto');
 const fetch = require('node-fetch');
 
-// Use dynamic import for electron-store (ESM module)
 let Store;
 let store;
 
-// ─── Globals ───────────────────────────────────────────────────────────────────
 let mainWindow = null;
 let tray = null;
 let checkInterval = null;
@@ -17,7 +15,6 @@ let isChecking = false;
 const CONFIG_PATH = path.join(app.getPath('userData'), 'apps.json');
 const UPDATER_REPO = 'Alowster/github-updater';
 
-// ─── Store initialization ──────────────────────────────────────────────────────
 async function initStore() {
   const StoreModule = await import('electron-store');
   Store = StoreModule.default;
@@ -32,7 +29,6 @@ async function initStore() {
   });
 }
 
-// ─── GitHub API ────────────────────────────────────────────────────────────────
 async function getLatestRelease(repoFullName, token) {
   const headers = { 'User-Agent': 'github-updater-app' };
   if (token) headers['Authorization'] = `token ${token}`;
@@ -40,7 +36,7 @@ async function getLatestRelease(repoFullName, token) {
   try {
     const res = await fetch(`https://api.github.com/repos/${repoFullName}/releases/latest`, { headers });
     if (!res.ok) {
-      if (res.status === 404) return null; // No releases yet
+      if (res.status === 404) return null;
       throw new Error(`GitHub API error: ${res.status}`);
     }
     const data = await res.json();
@@ -63,7 +59,6 @@ async function getLatestRelease(repoFullName, token) {
 }
 
 function compareVersions(v1, v2) {
-  // Returns true if v2 is newer than v1
   const clean = v => v.replace(/^v/, '').split('.').map(Number);
   const [a, b] = [clean(v1), clean(v2)];
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
@@ -73,7 +68,6 @@ function compareVersions(v1, v2) {
   return false;
 }
 
-// ─── App checking logic ────────────────────────────────────────────────────────
 async function checkAllApps() {
   if (isChecking) return [];
   isChecking = true;
@@ -89,13 +83,12 @@ async function checkAllApps() {
     const wasOutdated = app.isOutdated;
     app.latestVersion = latest.version;
     app.latestRelease = latest;
-    app.isOutdated = app.currentVersion 
+    app.isOutdated = app.currentVersion
       ? compareVersions(app.currentVersion, latest.version)
       : false;
     app.lastChecked = new Date().toISOString();
     updated.push(app);
 
-    // Notify if newly outdated
     if (!wasOutdated && app.isOutdated && Notification.isSupported()) {
       new Notification({
         title: `Update available: ${app.name}`,
@@ -115,11 +108,9 @@ async function checkAllApps() {
 
 function updateTrayIcon(apps) {
   if (!tray) return;
-  const hasOutdated = apps.some(a => a.isOutdated);
-  // Update tray tooltip
   const outdatedCount = apps.filter(a => a.isOutdated).length;
-  tray.setToolTip(outdatedCount > 0 
-    ? `GitHub Updater - ${outdatedCount} update(s) available` 
+  tray.setToolTip(outdatedCount > 0
+    ? `GitHub Updater - ${outdatedCount} update(s) available`
     : 'GitHub Updater - All apps up to date');
 }
 
@@ -129,12 +120,11 @@ function startCheckInterval() {
   checkInterval = setInterval(checkAllApps, minutes * 60 * 1000);
 }
 
-// ─── Self-update ───────────────────────────────────────────────────────────────
 async function checkSelfUpdate() {
   const token = store.get('githubToken', '');
   const latest = await getLatestRelease(UPDATER_REPO, token);
   if (!latest) return null;
-  
+
   const currentVersion = app.getVersion();
   if (compareVersions(currentVersion, latest.version)) {
     return latest;
@@ -142,12 +132,9 @@ async function checkSelfUpdate() {
   return null;
 }
 
-// ─── Download helper ───────────────────────────────────────────────────────────
 async function downloadAsset(url, destPath, token, progressCallback) {
   const headers = { 'User-Agent': 'github-updater-app' };
   if (token) headers['Authorization'] = `token ${token}`;
-  
-  // For GitHub release assets, need Accept header
   headers['Accept'] = 'application/octet-stream';
 
   const res = await fetch(url, { headers });
@@ -157,7 +144,7 @@ async function downloadAsset(url, destPath, token, progressCallback) {
   let downloaded = 0;
 
   const dest = fs.createWriteStream(destPath);
-  
+
   return new Promise((resolve, reject) => {
     res.body.on('data', chunk => {
       downloaded += chunk.length;
@@ -172,7 +159,6 @@ async function downloadAsset(url, destPath, token, progressCallback) {
   });
 }
 
-// ─── Window management ─────────────────────────────────────────────────────────
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 480,
@@ -210,14 +196,12 @@ function createMainWindow() {
 }
 
 function createTray() {
-  // Create a simple tray icon using nativeImage
   const iconPath = path.join(__dirname, '../assets/tray-icon.png');
   let trayIcon;
-  
+
   if (fs.existsSync(iconPath)) {
     trayIcon = nativeImage.createFromPath(iconPath);
   } else {
-    // Fallback: create a simple 16x16 icon programmatically
     trayIcon = nativeImage.createEmpty();
   }
 
@@ -244,10 +228,9 @@ function showWindow() {
   }
 }
 
-// ─── IPC Handlers ──────────────────────────────────────────────────────────────
 function setupIPC() {
   ipcMain.handle('get-apps', () => store.get('apps', []));
-  
+
   ipcMain.handle('get-settings', () => ({
     githubToken: store.get('githubToken', ''),
     checkIntervalMinutes: store.get('checkIntervalMinutes', 60),
@@ -259,13 +242,13 @@ function setupIPC() {
     store.set('githubToken', settings.githubToken || '');
     store.set('checkIntervalMinutes', settings.checkIntervalMinutes || 60);
     store.set('minimizeToTray', settings.minimizeToTray !== false);
-    
+
     if (settings.startWithWindows !== undefined) {
       store.set('startWithWindows', settings.startWithWindows);
       app.setLoginItemSettings({ openAtLogin: settings.startWithWindows });
     }
-    
-    startCheckInterval(); // Restart with new interval
+
+    startCheckInterval();
     return true;
   });
 
@@ -274,7 +257,7 @@ function setupIPC() {
     const newApp = {
       id: randomUUID(),
       name: appData.name,
-      repo: appData.repo, // e.g. "username/repo"
+      repo: appData.repo,
       currentVersion: appData.currentVersion || '',
       installPath: appData.installPath || '',
       autoUpdate: appData.autoUpdate || false,
@@ -312,18 +295,18 @@ function setupIPC() {
     const apps = store.get('apps', []);
     const app = apps.find(a => a.id === appId);
     if (!app) return null;
-    
+
     const token = store.get('githubToken', '');
     const latest = await getLatestRelease(app.repo, token);
     if (!latest) return null;
-    
+
     app.latestVersion = latest.version;
     app.latestRelease = latest;
-    app.isOutdated = app.currentVersion 
+    app.isOutdated = app.currentVersion
       ? compareVersions(app.currentVersion, latest.version)
       : false;
     app.lastChecked = new Date().toISOString();
-    
+
     const updatedApps = apps.map(a => a.id === appId ? app : a);
     store.set('apps', updatedApps);
     return app;
@@ -334,12 +317,11 @@ function setupIPC() {
     const appData = apps.find(a => a.id === appId);
     if (!appData || !appData.latestRelease) return { success: false, error: 'App not found' };
 
-    const asset = assetName 
+    const asset = assetName
       ? appData.latestRelease.assets.find(a => a.name === assetName)
       : appData.latestRelease.assets[0];
 
     if (!asset) {
-      // No binary asset, open GitHub release page
       shell.openExternal(appData.latestRelease.htmlUrl);
       return { success: true, openedBrowser: true };
     }
@@ -353,7 +335,6 @@ function setupIPC() {
         event.sender.send('download-progress', { appId, progress });
       });
 
-      // Update current version after download
       const updatedApps = apps.map(a => {
         if (a.id === appId) {
           return { ...a, currentVersion: a.latestVersion, isOutdated: false };
@@ -362,7 +343,6 @@ function setupIPC() {
       });
       store.set('apps', updatedApps);
 
-      // Open the downloads folder
       shell.showItemInFolder(destPath);
       return { success: true, path: destPath };
     } catch (err) {
@@ -392,30 +372,25 @@ function setupIPC() {
   });
 }
 
-// ─── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   await initStore();
   setupIPC();
   createTray();
   createMainWindow();
-  
-  // Initial check after 3 seconds
+
   setTimeout(checkAllApps, 3000);
-  
-  // Then check on interval
   startCheckInterval();
 
-  // Auto-update apps that have autoUpdate enabled
   autoUpdateInterval = setInterval(async () => {
     const apps = store.get('apps', []);
     for (const appData of apps.filter(a => a.autoUpdate && a.isOutdated)) {
       const asset = appData.latestRelease?.assets?.[0];
       if (!asset) continue;
-      
+
       const token = store.get('githubToken', '');
       const downloadsPath = app.getPath('downloads');
       const destPath = path.join(downloadsPath, asset.name);
-      
+
       try {
         await downloadAsset(asset.downloadUrl, destPath, token, null);
         const updatedApps = store.get('apps', []).map(a => {
@@ -436,12 +411,10 @@ app.whenReady().then(async () => {
         console.error(`Auto-update failed for ${appData.name}:`, err.message);
       }
     }
-  }, 5 * 60 * 1000); // Check auto-updates every 5 minutes
+  }, 5 * 60 * 1000);
 });
 
-app.on('window-all-closed', () => {
-  // Don't quit on macOS/Windows when window closed - stay in tray
-});
+app.on('window-all-closed', () => {});
 
 app.on('before-quit', () => {
   app.isQuitting = true;
