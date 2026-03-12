@@ -41,8 +41,16 @@ jobs:
         with:
           node-version: 22
 
+      - name: Show versions
+        run: |
+          node --version
+          npm --version
+
       - name: Set version
         run: npm version ${{ github.event.inputs.version }} --no-git-tag-version
+
+      - name: Show package.json version
+        run: node -e "console.log(require('./package.json').version)"
 
       - name: Install dependencies
         run: npm ci
@@ -51,6 +59,7 @@ jobs:
         run: npm run release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: electron-builder
 
   build-linux:
     needs: prepare
