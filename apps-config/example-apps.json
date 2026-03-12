@@ -1,0 +1,23 @@
+{
+  "_comment": "Este archivo es solo de ejemplo. Las apps se guardan automáticamente en el userData de Electron.",
+  "apps": [
+    {
+      "id": "example1",
+      "name": "Mi App Python",
+      "repo": "tu-usuario/mi-app-python",
+      "currentVersion": "v1.2.0",
+      "installPath": "C:\\Program Files\\MiApp",
+      "autoUpdate": false,
+      "icon": "🐍"
+    },
+    {
+      "id": "example2", 
+      "name": "Mi Herramienta CLI",
+      "repo": "tu-usuario/mi-cli-tool",
+      "currentVersion": "v0.9.1",
+      "installPath": "",
+      "autoUpdate": true,
+      "icon": "⚙️"
+    }
+  ]
+}

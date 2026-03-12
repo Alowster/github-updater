@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Updater</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --green: #3fb950;
+    --green-dim: #1a4226;
+    --yellow: #d29922;
+    --yellow-dim: #3d2b00;
+    --red: #f85149;
+    --red-dim: #3d1c1a;
+    --blue: #58a6ff;
+    --blue-dim: #0d2044;
+    --purple: #bc8cff;
+    --accent: #238636;
+    --radius: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── Titlebar ── */
+  #titlebar {
+    height: 40px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    -webkit-app-region: drag;
+    flex-shrink: 0;
+    gap: 8px;
+  }
+  #titlebar .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  #titlebar .logo .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  #titlebar .version-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .win-controls {
+    display: flex;
+    gap: 6px;
+    -webkit-app-region: no-drag;
+  }
+  .win-btn {
+    width: 28px; height: 20px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg3);
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .win-btn:hover { background: var(--bg); color: var(--text); }
+  .win-btn.close:hover { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+
+  /* ── Toolbar ── */
+  #toolbar {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .toolbar-status {
+    flex: 1;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text2);
+  }
+  .toolbar-status .highlight { color: var(--green); }
+  .toolbar-status .warn { color: var(--yellow); }
+  .btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 5px;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent);
+    border-color: #2ea043;
+    color: #fff;
+  }
+  .btn-primary:hover { background: #2ea043; }
+  .btn-secondary {
+    background: var(--bg3);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { border-color: var(--blue); color: var(--blue); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.spinning svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Main content ── */
+  #content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Views ── */
+  .view { display: none; flex: 1; overflow-y: auto; padding: 12px; }
+  .view.active { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ── App Cards ── */
+  .app-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 2px 0 0 2px;
+  }
+  .app-card.up-to-date::before { background: var(--green); }
+  .app-card.outdated::before { background: var(--yellow); }
+  .app-card.unknown::before { background: var(--border); }
+  .app-card:hover { border-color: #484f58; }
+
+  .app-icon {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .app-icon img { width: 100%; height: 100%; object-fit: cover; }
+
+  .app-info { flex: 1; min-width: 0; }
+  .app-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .app-repo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .app-versions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+  .version-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+  .version-current { background: var(--bg3); border-color: var(--border); color: var(--text2); }
+  .version-latest-ok { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .version-latest-new { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .version-unknown { background: var(--bg3); border-color: var(--border); color: var(--text2); font-style: italic; }
+
+  .auto-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--blue-dim);
+    border: 1px solid var(--blue);
+    color: var(--blue);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .app-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .btn-update {
+    padding: 5px 10px;
+    font-size: 11px;
+    background: var(--yellow-dim);
+    border: 1px solid var(--yellow);
+    color: var(--yellow);
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .btn-update:hover { background: var(--yellow); color: #000; }
+  .btn-icon {
+    width: 26px; height: 26px;
+    border-radius: 5px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    font-size: 12px;
+  }
+  .btn-icon:hover { border-color: var(--blue); color: var(--blue); }
+  .btn-icon.danger:hover { border-color: var(--red); color: var(--red); }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 2px;
+    background: var(--bg3);
+    border-radius: 1px;
+    margin-top: 6px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress-bar.active { display: block; }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blue), var(--green));
+    border-radius: 1px;
+    transition: width 0.3s;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text2);
+    padding: 40px;
+    text-align: center;
+  }
+  .empty-state svg { opacity: 0.3; }
+  .empty-state h3 { font-size: 16px; color: var(--text); }
+  .empty-state p { font-size: 13px; line-height: 1.5; }
+
+  /* ── Settings view ── */
+  .settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .form-input {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { outline: none; border-color: var(--blue); }
+  .form-input::placeholder { color: var(--text2); opacity: 0.6; }
+  .form-hint { font-size: 11px; color: var(--text2); }
+  .form-hint a { color: var(--blue); cursor: pointer; }
+  
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .toggle-label { font-size: 13px; }
+  .toggle-desc { font-size: 11px; color: var(--text2); margin-top: 1px; }
+  .toggle {
+    width: 36px; height: 20px;
+    border-radius: 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); border-color: #2ea043; }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(16px); }
+
+  /* ── Add app modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    width: 340px;
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ── Tab nav ── */
+  #tab-nav {
+    display: flex;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 8px;
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    transition: color 0.15s;
+    border-top: 2px solid transparent;
+    margin-top: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--blue); border-top-color: var(--blue); }
+
+  /* ── Asset selector ── */
+  .asset-list { display: flex; flex-direction: column; gap: 6px; }
+  .asset-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .asset-item:hover { border-color: var(--blue); }
+  .asset-name { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .asset-size { font-size: 10px; color: var(--text2); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Animations */
+  .app-card { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .section-header {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text2);
+    padding: 4px 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- Titlebar -->
+<div id="titlebar">
+  <div class="logo">
+    <div class="dot"></div>
+    GitHub Updater
+  </div>
+  <span class="version-badge" id="app-version">v1.0.0</span>
+  <div class="win-controls">
+    <button class="win-btn" onclick="window.api.minimize()" title="Minimizar">−</button>
+    <button class="win-btn close" onclick="window.api.close()" title="Cerrar">×</button>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <div class="toolbar-status" id="status-text">Cargando...</div>
+  <button class="btn btn-secondary" id="btn-check" onclick="checkAll()">
+    <svg id="check-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+    </svg>
+    Verificar
+  </button>
+  <button class="btn btn-primary" onclick="openAddModal()">
+    + App
+  </button>
+</div>
+
+<!-- Content -->
+<div id="content">
+  <!-- Apps View -->
+  <div class="view active" id="view-apps">
+    <div id="apps-container">
+      <div class="empty-state" id="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+        </svg>
+        <h3>Sin aplicaciones</h3>
+        <p>Añade tus repositorios de GitHub para<br>monitorizar sus actualizaciones.</p>
+        <button class="btn btn-primary" onclick="openAddModal()">+ Añadir primera app</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings View -->
+  <div class="view" id="view-settings">
+    <div class="settings-form">
+      <div class="form-group">
+        <label class="form-label">GitHub Token</label>
+        <input type="password" class="form-input" id="s-token" placeholder="ghp_xxxxxxxxxxxx">
+        <span class="form-hint">
+          Requerido para repos privados y más rate limit.
+          <a onclick="window.api.openReleasePage('https://github.com/settings/tokens/new?scopes=repo')">Crear token →</a>
+        </span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Intervalo de verificación</label>
+        <input type="number" class="form-input" id="s-interval" placeholder="60" min="5" max="1440">
+        <span class="form-hint">Minutos entre verificaciones automáticas (mín. 5)</span>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Iniciar con Windows</div>
+          <div class="toggle-desc">Arrancar al iniciar sesión</div>
+        </div>
+        <div class="toggle" id="t-startup" onclick="toggleSetting(this)"></div>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Minimizar a bandeja</div>
+          <div class="toggle-desc">Al cerrar, mantener en la barra de tareas</div>
+        </div>
+        <div class="toggle on" id="t-tray" onclick="toggleSetting(this)"></div>
+      </div>
+      <button class="btn btn-primary" style="align-self:flex-start" onclick="saveSettings(event)">
+        ✓ Guardar configuración
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tab nav -->
+<div id="tab-nav">
+  <button class="tab-btn active" onclick="switchTab(event, 'apps')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+    </svg>
+    Apps
+  </button>
+  <button class="tab-btn" onclick="switchTab(event, 'settings')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M21 12h-2M5 12H3M12 21v-2M12 5V3"/>
+    </svg>
+    Ajustes
+  </button>
+</div>
+
+<!-- Add App Modal -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal">
+    <div class="modal-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>
+      </svg>
+      Añadir aplicación
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre</label>
+      <input type="text" class="form-input" id="m-name" placeholder="Mi Aplicación">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Repositorio GitHub</label>
+      <input type="text" class="form-input" id="m-repo" placeholder="usuario/repositorio">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Versión instalada</label>
+      <input type="text" class="form-input" id="m-version" placeholder="v1.0.0">
+      <span class="form-hint">Deja vacío si aún no está instalada</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Emoji / Icono</label>
+      <input type="text" class="form-input" id="m-icon" placeholder="🚀" maxlength="4">
+    </div>
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Actualización automática</div>
+        <div class="toggle-desc">Descargar automáticamente cuando haya update</div>
+      </div>
+      <div class="toggle" id="m-auto" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeAddModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="addApp()">Añadir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Asset selector modal -->
+<div class="modal-overlay" id="modal-assets">
+  <div class="modal">
+    <div class="modal-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Seleccionar archivo
+    </div>
+    <p style="font-size:12px;color:var(--text2)" id="assets-release-name"></p>
+    <div class="asset-list" id="asset-list"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-assets').classList.remove('active')">Cancelar</button>
+      <button class="btn btn-secondary" id="btn-open-release" onclick="openCurrentRelease()">Ver en GitHub →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let apps = [];
+let currentAssetAppId = null;
+let currentReleaseUrl = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const version = await window.api.getAppVersion();
+  document.getElementById('app-version').textContent = `v${version}`;
+
+  apps = await window.api.getApps();
+  renderApps();
+  await loadSettings();
+
+  window.api.onAppsUpdated((updatedApps) => {
+    apps = updatedApps;
+    renderApps();
+    updateStatusBar();
+  });
+
+  window.api.onDownloadProgress(({ appId, progress }) => {
+    const bar = document.querySelector(`[data-app="${appId}"] .progress-fill`);
+    const barWrap = document.querySelector(`[data-app="${appId}"] .progress-bar`);
+    if (bar) { bar.style.width = progress + '%'; barWrap.classList.add('active'); }
+    if (progress >= 100) {
+      setTimeout(() => barWrap?.classList.remove('active'), 1000);
+    }
+  });
+
+  updateStatusBar();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderApps() {
+  const container = document.getElementById('apps-container');
+  const empty = document.getElementById('empty-state');
+
+  if (apps.length === 0) {
+    container.innerHTML = '';
+    container.appendChild(empty);
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Sort: outdated first
+  const sorted = [...apps].sort((a, b) => {
+    if (a.isOutdated && !b.isOutdated) return -1;
+    if (!a.isOutdated && b.isOutdated) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Group
+  const outdated = sorted.filter(a => a.isOutdated);
+  const upToDate = sorted.filter(a => !a.isOutdated && a.currentVersion);
+  const unknown = sorted.filter(a => !a.isOutdated && !a.currentVersion);
+
+  let html = '';
+  if (outdated.length) {
+    html += `<div class="section-header">⚡ Actualizaciones disponibles (${outdated.length})</div>`;
+    html += outdated.map(renderCard).join('');
+  }
+  if (upToDate.length) {
+    html += `<div class="section-header">✓ Al día (${upToDate.length})</div>`;
+    html += upToDate.map(renderCard).join('');
+  }
+  if (unknown.length) {
+    html += `<div class="section-header">? Sin instalar (${unknown.length})</div>`;
+    html += unknown.map(renderCard).join('');
+  }
+
+  container.innerHTML = html;
+  container.appendChild(empty);
+}
+
+function renderCard(app) {
+  const statusClass = app.isOutdated ? 'outdated' : (app.currentVersion ? 'up-to-date' : 'unknown');
+  const icon = app.icon || '📦';
+
+  const currentTag = app.currentVersion
+    ? `<span class="version-tag version-current">${app.currentVersion}</span>`
+    : '';
+  const latestTag = app.latestVersion
+    ? `<span class="version-tag ${app.isOutdated ? 'version-latest-new' : 'version-latest-ok'}">${app.latestVersion} ${app.isOutdated ? '↑' : '✓'}</span>`
+    : `<span class="version-tag version-unknown">sin verificar</span>`;
+  const autoBadge = app.autoUpdate ? `<span class="auto-badge">AUTO</span>` : '';
+
+  const updateBtn = app.isOutdated
+    ? `<button class="btn-update" onclick="triggerUpdate('${app.id}')">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Actualizar
+      </button>`
+    : '';
+
+  return `
+  <div class="app-card ${statusClass}" data-app="${app.id}">
+    <div class="app-icon">${icon}</div>
+    <div class="app-info">
+      <div class="app-name">${escapeHtml(app.name)}</div>
+      <div class="app-repo">${escapeHtml(app.repo)}</div>
+      <div class="app-versions">
+        ${currentTag}
+        ${latestTag}
+        ${autoBadge}
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+    </div>
+    <div class="app-actions">
+      ${updateBtn}
+      <div style="display:flex;gap:4px">
+        <button class="btn-icon" title="Verificar ahora" onclick="checkSingle('${app.id}')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+          </svg>
+        </button>
+        <button class="btn-icon" title="Auto-update: ${app.autoUpdate ? 'ON' : 'OFF'}" 
+          onclick="toggleAutoUpdate('${app.id}')" style="${app.autoUpdate ? 'color:var(--blue);border-color:var(--blue)' : ''}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 8 16 8"/>
+          </svg>
+        </button>
+        <button class="btn-icon danger" title="Eliminar" onclick="removeApp('${app.id}')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function updateStatusBar() {
+  const outdated = apps.filter(a => a.isOutdated).length;
+  const statusEl = document.getElementById('status-text');
+  if (apps.length === 0) {
+    statusEl.innerHTML = 'Sin aplicaciones configuradas';
+  } else if (outdated === 0) {
+    statusEl.innerHTML = `<span class="highlight">✓ Todo al día</span> · ${apps.length} apps`;
+  } else {
+    statusEl.innerHTML = `<span class="warn">⚡ ${outdated} actualización${outdated > 1 ? 'es' : ''}</span> · ${apps.length} apps`;
+  }
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+async function checkAll() {
+  const btn = document.getElementById('btn-check');
+  const icon = document.getElementById('check-icon');
+  btn.disabled = true;
+  icon.parentElement.classList.add('spinning');
+  document.getElementById('status-text').innerHTML = 'Verificando...';
+
+  apps = await window.api.checkAll();
+  renderApps();
+  updateStatusBar();
+
+  btn.disabled = false;
+  icon.parentElement.classList.remove('spinning');
+}
+
+async function checkSingle(id) {
+  const updated = await window.api.checkApp(id);
+  if (updated) {
+    apps = apps.map(a => a.id === id ? updated : a);
+    renderApps();
+    updateStatusBar();
+  }
+}
+
+async function triggerUpdate(appId) {
+  const app = apps.find(a => a.id === appId);
+  if (!app || !app.latestRelease) return;
+
+  const assets = app.latestRelease.assets;
+  if (assets.length === 0) {
+    // No binary assets, open GitHub
+    window.api.openReleasePage(app.latestRelease.htmlUrl);
+    return;
+  }
+  if (assets.length === 1) {
+    startDownload(appId, assets[0].name);
+    return;
+  }
+
+  // Multiple assets - show selector
+  currentAssetAppId = appId;
+  currentReleaseUrl = app.latestRelease.htmlUrl;
+  document.getElementById('assets-release-name').textContent = 
+    `Release: ${app.latestRelease.version} - ${app.latestRelease.name || ''}`;
+  
+  const list = document.getElementById('asset-list');
+  list.innerHTML = assets.map(a => `
+    <div class="asset-item" onclick="startDownload('${escapeHtml(appId)}', '${escapeHtml(a.name)}')">
+      <span class="asset-name">${escapeHtml(a.name)}</span>
+      <span class="asset-size">${formatBytes(a.size)}</span>
+    </div>
+  `).join('');
+  
+  document.getElementById('modal-assets').classList.add('active');
+}
+
+async function startDownload(appId, assetName) {
+  document.getElementById('modal-assets').classList.remove('active');
+  const result = await window.api.downloadUpdate(appId, assetName);
+  if (result.success) {
+    apps = apps.map(a => a.id === appId 
+      ? { ...a, currentVersion: a.latestVersion, isOutdated: false }
+      : a);
+    renderApps();
+    updateStatusBar();
+  } else if (!result.openedBrowser) {
+    alert('Error al descargar: ' + result.error);
+  }
+}
+
+function openCurrentRelease() {
+  if (currentReleaseUrl) window.api.openReleasePage(currentReleaseUrl);
+  document.getElementById('modal-assets').classList.remove('active');
+}
+
+async function toggleAutoUpdate(appId) {
+  const app = apps.find(a => a.id === appId);
+  if (!app) return;
+  const updated = await window.api.updateAppConfig(appId, { autoUpdate: !app.autoUpdate });
+  if (updated) {
+    apps = apps.map(a => a.id === appId ? { ...a, autoUpdate: !a.autoUpdate } : a);
+    renderApps();
+  }
+}
+
+async function removeApp(appId) {
+  if (!confirm('¿Eliminar esta aplicación del seguimiento?')) return;
+  await window.api.removeApp(appId);
+  apps = apps.filter(a => a.id !== appId);
+  renderApps();
+  updateStatusBar();
+}
+
+// ── Add App Modal ─────────────────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-repo').value = '';
+  document.getElementById('m-version').value = '';
+  document.getElementById('m-icon').value = '';
+  document.getElementById('m-auto').classList.remove('on');
+  document.getElementById('modal-add').classList.add('active');
+  setTimeout(() => document.getElementById('m-name').focus(), 100);
+}
+
+function closeAddModal() {
+  document.getElementById('modal-add').classList.remove('active');
+}
+
+async function addApp() {
+  const name = document.getElementById('m-name').value.trim();
+  const repo = document.getElementById('m-repo').value.trim();
+  const version = document.getElementById('m-version').value.trim();
+  const icon = document.getElementById('m-icon').value.trim();
+  const autoUpdate = document.getElementById('m-auto').classList.contains('on');
+
+  if (!name || !repo) { alert('Nombre y repositorio son obligatorios'); return; }
+  if (!repo.includes('/')) { alert('El repositorio debe ser "usuario/repositorio"'); return; }
+
+  const newApp = await window.api.addApp({ name, repo, currentVersion: version, icon, autoUpdate });
+  apps.push(newApp);
+  renderApps();
+  updateStatusBar();
+  closeAddModal();
+
+  // Check immediately
+  const updated = await window.api.checkApp(newApp.id);
+  if (updated) {
+    apps = apps.map(a => a.id === newApp.id ? updated : a);
+    renderApps();
+    updateStatusBar();
+  }
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const s = await window.api.getSettings();
+  document.getElementById('s-token').value = s.githubToken || '';
+  document.getElementById('s-interval').value = s.checkIntervalMinutes || 60;
+  if (s.startWithWindows) document.getElementById('t-startup').classList.add('on');
+  if (!s.minimizeToTray) document.getElementById('t-tray').classList.remove('on');
+}
+
+async function saveSettings(event) {
+  const settings = {
+    githubToken: document.getElementById('s-token').value.trim(),
+    checkIntervalMinutes: parseInt(document.getElementById('s-interval').value) || 60,
+    startWithWindows: document.getElementById('t-startup').classList.contains('on'),
+    minimizeToTray: document.getElementById('t-tray').classList.contains('on')
+  };
+  await window.api.saveSettings(settings);
+
+  const btn = event.target;
+  const original = btn.textContent;
+  btn.textContent = '✓ Guardado!';
+  btn.style.background = 'var(--green-dim)';
+  btn.style.borderColor = 'var(--green)';
+  setTimeout(() => { btn.textContent = original; btn.style = ''; }, 2000);
+}
+
+function toggleSetting(el) { el.classList.toggle('on'); }
+
+// ── Tab navigation ────────────────────────────────────────────────────────────
+function switchTab(event, tab) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`view-${tab}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Close modals on overlay click
+document.getElementById('modal-add').addEventListener('click', function(e) {
+  if (e.target === this) closeAddModal();
+});
+document.getElementById('modal-assets').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('active');
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeAddModal();
+    document.getElementById('modal-assets').classList.remove('active');
+  }
+  if (e.key === 'Enter' && document.getElementById('modal-add').classList.contains('active')) {
+    addApp();
+  }
+});
+
+init();
+</script>
+</body>
+</html>
