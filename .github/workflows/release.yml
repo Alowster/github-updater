@@ -16,14 +16,23 @@ jobs:
         with:
           node-version: 22
 
+      - name: Get version
+        id: version
+        shell: pwsh
+        run: |
+          $v = node -p "require('./package.json').version"
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build
         run: npm run build
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
         with:
-          name: GitHub-Updater-Windows
-          path: dist/*.exe
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          draft: true
+          files: dist/*.exe
