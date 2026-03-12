@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
 
   checkSelfUpdate: () => ipcRenderer.invoke('check-self-update'),
+  downloadSelfUpdate: () => ipcRenderer.invoke('download-self-update'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
   minimize: () => ipcRenderer.invoke('window-minimize'),
@@ -29,5 +30,10 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_, data) => cb(data);
     ipcRenderer.on('download-progress', handler);
     return () => ipcRenderer.removeListener('download-progress', handler);
+  },
+  onSelfUpdateProgress: (cb) => {
+    const handler = (_, progress) => cb(progress);
+    ipcRenderer.on('self-update-progress', handler);
+    return () => ipcRenderer.removeListener('self-update-progress', handler);
   }
 });

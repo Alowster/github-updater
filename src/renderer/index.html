@@ -80,6 +80,21 @@
     padding: 2px 6px;
     border-radius: 4px;
   }
+  #self-update-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--yellow);
+    background: var(--yellow-dim);
+    border: 1px solid var(--yellow);
+    padding: 2px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    animation: pulse 2s infinite;
+    transition: all 0.15s;
+  }
+  #self-update-btn:hover { background: var(--yellow); color: #000; animation: none; }
+  #self-update-btn:disabled { opacity: 0.5; cursor: not-allowed; animation: none; }
   .win-controls {
     display: flex;
     gap: 6px;
@@ -474,6 +489,7 @@
     GitHub Updater
   </div>
   <span class="version-badge" id="app-version">v1.0.0</span>
+  <button id="self-update-btn" style="display:none" onclick="selfUpdate()"></button>
   <div class="win-controls">
     <button class="win-btn" onclick="window.api.minimize()" title="Minimizar">−</button>
     <button class="win-btn close" onclick="window.api.close()" title="Cerrar">×</button>
@@ -643,7 +659,33 @@ async function init() {
     }
   });
 
+  window.api.onSelfUpdateProgress((progress) => {
+    const btn = document.getElementById('self-update-btn');
+    btn.textContent = progress < 100 ? `↓ ${progress}%` : '✓ descargado';
+  });
+
+  const selfUpdate = await window.api.checkSelfUpdate();
+  if (selfUpdate) {
+    const btn = document.getElementById('self-update-btn');
+    btn.textContent = `↑ ${selfUpdate.version}`;
+    btn.style.display = '';
+  }
+
   updateStatusBar();
+}
+
+async function selfUpdate() {
+  const btn = document.getElementById('self-update-btn');
+  btn.disabled = true;
+  btn.textContent = '↓ descargando...';
+  const result = await window.api.downloadSelfUpdate();
+  if (!result.success && !result.openedBrowser) {
+    btn.disabled = false;
+    btn.textContent = btn.textContent.includes('descargando') ? '↑ reintentar' : btn.textContent;
+  }
+  if (result.openedBrowser || result.success) {
+    btn.style.display = 'none';
+  }
 }
 
 function renderApps() {

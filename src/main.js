@@ -12,6 +12,7 @@ let tray = null;
 let checkInterval = null;
 let autoUpdateInterval = null;
 let isChecking = false;
+let selfUpdateRelease = null;
 const CONFIG_PATH = path.join(app.getPath('userData'), 'apps.json');
 const UPDATER_REPO = 'Alowster/github-updater';
 
@@ -127,8 +128,10 @@ async function checkSelfUpdate() {
 
   const currentVersion = app.getVersion();
   if (compareVersions(currentVersion, latest.version)) {
+    selfUpdateRelease = latest;
     return latest;
   }
+  selfUpdateRelease = null;
   return null;
 }
 
@@ -359,6 +362,31 @@ function setupIPC() {
     return await checkSelfUpdate();
   });
 
+  ipcMain.handle('download-self-update', async (event) => {
+    if (!selfUpdateRelease) return { success: false, error: 'No update available' };
+
+    const assets = selfUpdateRelease.assets;
+    if (assets.length === 0) {
+      shell.openExternal(selfUpdateRelease.htmlUrl);
+      return { success: true, openedBrowser: true };
+    }
+
+    const asset = assets.find(a => a.name.endsWith('.exe')) || assets[0];
+    const token = store.get('githubToken', '');
+    const downloadsPath = app.getPath('downloads');
+    const destPath = path.join(downloadsPath, asset.name);
+
+    try {
+      await downloadAsset(asset.downloadUrl, destPath, token, (progress) => {
+        event.sender.send('self-update-progress', progress);
+      });
+      shell.showItemInFolder(destPath);
+      return { success: true, path: destPath };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('get-app-version', () => app.getVersion());
 
   ipcMain.handle('window-minimize', () => mainWindow?.minimize());
@@ -379,6 +407,7 @@ app.whenReady().then(async () => {
   createMainWindow();
 
   setTimeout(checkAllApps, 3000);
+  setTimeout(checkSelfUpdate, 5000);
   startCheckInterval();
 
   autoUpdateInterval = setInterval(async () => {
